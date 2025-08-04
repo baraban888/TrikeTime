@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrikeTime MVP</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>TrikeTime</h1>
+    <div id="status">Смена не начата</div>
+    <button id="startBtn">Начать смену</button>
+
+    <div id="timers" style="display:none;">
+        <p>Время работы: <span id="workTime">00:00:00</span></p>
+        <p>До паузы 45 мин: <span id="breakTime">00:45:00</span></p>
+        <p>До конца смены 9 ч: <span id="shiftEndTime">09:00:00</span></p>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
