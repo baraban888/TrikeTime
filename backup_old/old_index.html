@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrikeTime</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4facfe">
+
+</head>
+<body>
+    <div class="container">
+        <h1>TrikeTime</h1>
+        <div class="status-card">
+            <p id="status">Смена не начата</p>
+            <p id="timer" style="display:none; font-size: 24px; margin: 10px 0;">00:00:00</p>
+            <button id="shiftBtn">Начать смену</button>
+        </div>
+
+        <div class="history-card">
+            <h2>История смен</h2>
+            <ul id="historyList"></ul>
+            <button id="clearHistoryBtn" class="clear-btn">Очистить историю</button>
+            <button id="downloadHistoryBtn" class="download-btn">Скачать историю (CSV)</button>
+        </div>
+    </div>
+
+    <script>
+        const statusText = document.getElementById('status');
+        const timerDisplay = document.getElementById('timer');
+        const shiftBtn = document.getElementById('shiftBtn');
+        const historyList = document.getElementById('historyList');
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+        const downloadHistoryBtn = document.getElementById('downloadHistoryBtn');
+
+        let shiftActive = false;
+        let timer = null;
+        let startTime = null;
+
+        function formatTime(sec) {
+            const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+            const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+            const s = String(sec % 60).padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
+        function startTimer() {
+            timer = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                timerDisplay.textContent = formatTime(elapsed);
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timer);
+            timer = null;
+        }
+
+        function loadHistory() {
+            const history = JSON.parse(localStorage.getItem('shiftHistory') || '[]');
+            historyList.innerHTML = '';
+            history.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = `${item.date} — ${item.duration}`;
+                historyList.appendChild(li);
+            });
+        }
+
+        function saveToHistory(durationSec) {
+            const history = JSON.parse(localStorage.getItem('shiftHistory') || '[]');
+            const duration = formatTime(durationSec);
+            const date = new Date().toLocaleString('ru-RU');
+            history.unshift({ date, duration });
+            localStorage.setItem('shiftHistory', JSON.stringify(history));
+            loadHistory();
+        }
+
+        // Очистка истории
+        clearHistoryBtn.addEventListener('click', () => {
+            if (confirm('Очистить всю историю смен?')) {
+                localStorage.removeItem('shiftHistory');
+                loadHistory();
+            }
+        });
+
+        // Скачивание истории в CSV
+        downloadHistoryBtn.addEventListener('click', () => {
+            const history = JSON.parse(localStorage.getItem('shiftHistory') || '[]');
+            if (history.length === 0) {
+                alert('История пуста');
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,Дата;Длительность\n";
+            history.forEach(item => {
+                csvContent += `${item.date};${item.duration}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "triketime_history.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        // Загружаем историю при старте
+        loadHistory();
+
+        // Восстанавливаем активную смену
+        const savedStartTime = localStorage.getItem('shiftStart');
+        if (savedStartTime) {
+            shiftActive = true;
+            startTime = Number(savedStartTime);
+            statusText.textContent = 'Смена начата';
+            shiftBtn.textContent = 'Закончить смену';
+            timerDisplay.style.display = 'block';
+            startTimer();
+        }
+
+        // Обработка кнопки начала/конца смены
+        shiftBtn.addEventListener('click', () => {
+            if (!shiftActive) {
+                shiftActive = true;
+                startTime = Date.now();
+                localStorage.setItem('shiftStart', startTime);
+
+                statusText.textContent = 'Смена начата';
+                shiftBtn.textContent = 'Закончить смену';
+                timerDisplay.style.display = 'block';
+                startTimer();
+            } else {
+                shiftActive = false;
+                stopTimer();
+
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                saveToHistory(elapsed);
+
+                localStorage.removeItem('shiftStart');
+                statusText.textContent = 'Смена закончена';
+                shiftBtn.textContent = 'Начать смену';
+            }
+        });
+    </script>
+    <script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js')
+    .then(() => console.log('Service Worker зарегистрирован'))
+    .catch(err => console.log('Ошибка регистрации SW:', err));
+}
+</script>
+
+</body>
+</html>
