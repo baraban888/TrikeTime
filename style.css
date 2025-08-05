@@ -1,2 +1,101 @@
-/* backup_old/old_style.css */
-/* This is a backup of the old styles. Place your old CSS code here. */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #4facfe, #00f2fe);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding-top: 40px;
+}
+
+.container {
+    text-align: center;
+    color: #fff;
+    width: 90%;
+    max-width: 400px;
+}
+
+.status-card, .history-card {
+    background: white;
+    color: #333;
+    padding: 20px;
+    border-radius: 15px;
+    margin-top: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    width: 100%;
+}
+
+.status-card {
+    margin-bottom: 20px; /* Adds space between cards */
+}
+
+button {
+    background: #4facfe;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    font-size: 18px;
+    border-radius: 10px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: 0.2s;
+    width: 100%;
+    outline: none;
+}
+
+button:focus {
+    box-shadow: 0 0 0 3px #b3e5fc;
+}
+
+button:hover {
+    background: #008cff;
+}
+
+/* Кнопка очистки */
+.clear-btn {
+    background: #ff6b6b;
+    font-size: 16px;
+}
+
+.clear-btn:hover {
+    background: #e63946;
+}
+
+/* Кнопка скачивания */
+.download-btn {
+    background: #2ecc71;
+    font-size: 16px;
+}
+
+.download-btn:hover {
+    background: #27ae60;
+}
+
+.history-card h2 {
+    margin-top: 0;
+}
+
+.history-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    text-align: left;
+    font-size: 14px;
+}
+
+.history-card li {
+    padding: 5px 0;
+    border-bottom: 1px solid #eee;
+}
+
+@media (max-width: 500px) {
+    .container {
+        max-width: 98%;
+        font-size: 15px;
+    }
+    button {
+        font-size: 16px;
+        padding: 12px 10px;
+    }
+}
