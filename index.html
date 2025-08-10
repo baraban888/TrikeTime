@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<!--html lang="ru"-->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    g<title>TrikeTime</title>
+    <title>TrikeTime</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#4facfe">
@@ -39,30 +39,6 @@
     <script src="lang.js"></script>
     <script src="app.js"></script>
 </body>
-
-    <div class="lang-switcher" style="text-align: right; margin: 10px;">
-    <button onclick="setLanguage('en')">EN</button>
-    <button onclick="setLanguage('ru')">RU</button>
-    <button onclick="setLanguage('uk')">UA</button>
-    <button onclick="setLanguage('pl')">PL</button>
-</div>
-
-    <div class="container">
-        <h1 id="title>">TrikeTime</h1>
-        <div class="status-card">
-            <p id="status">Смена не начата</p>
-            <p id="timer" style="display:none; font-size: 24px; margin: 10px 0;">00:00:00</p>
-            <button id="shiftBtn">Начать смену</button>
-        </div>
-
-        <div class="history-card">
-            <h2 id="historyTitle">История смен</h2>
-            <ul id="historyList"></ul>
-            <button id="clearHistoryBtn">Очистить историю</button>
-            <button id="downloadHistoryBtn">Скачать историю (CSV)</button>
-        </div>
-    </div>
-
     <script>
         const statusText = document.getElementById('status');
         const timerDisplay = document.getElementById('timer');
