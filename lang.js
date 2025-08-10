@@ -37,17 +37,24 @@ const translations = {
 };
 
 // Функция смены языка
-function setLanguage(lang) {
-    localStorage.setItem('lang', lang);
+// было: function setLanguage(lang) { ... }
+window.setLanguage = function (lang) {
+  localStorage.setItem('lang', lang);
 
-    document.getElementById("title").innerText = translations[lang].title;
-    document.getElementById("status").innerText = translations[lang].status;
-    document.getElementById("shiftBtn").innerText = translations[lang].startShift;
+  document.getElementById("title").innerText = translations[lang].title;
+  document.getElementById("status").innerText = translations[lang].status;
+  document.getElementById("shiftBtn").innerText = translations[lang].startShift;
 
-    document.getElementById("historyTitle").innerText = translations[lang].historyTitle;
-    document.getElementById("clearHistoryBtn").innerText = translations[lang].clearHistory;
-    document.getElementById("downloadHistoryBtn").innerText = translations[lang].downloadHistory;
-}
+  document.getElementById("historyTitle").innerText = translations[lang].historyTitle;
+  document.getElementById("clearHistoryBtn").innerText = translations[lang].clearHistory;
+  document.getElementById("downloadHistoryBtn").innerText = translations[lang].downloadHistory;
+};
+
+window.addEventListener('DOMContentLoaded', () => {
+  const savedLang = localStorage.getItem('lang') || 'ru';
+  window.setLanguage(savedLang);
+});
+
 
 // Загружаем сохранённый язык при старте
 window.addEventListener('DOMContentLoaded', () => {
