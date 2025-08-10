@@ -10,6 +10,13 @@
 
 </head>
 <body>
+    <div class="lang-switcher" style="text-align: right; margin: 10px;">
+    <button onclick="setLanguage('en')">EN</button>
+    <button onclick="setLanguage('ru')">RU</button>
+    <button onclick="setLanguage('uk')">UA</button>
+    <button onclick="setLanguage('pl')">PL</button>
+</div>
+
     <div class="container">
         <h1>TrikeTime</h1>
         <div class="status-card">
@@ -151,6 +158,9 @@ if ('serviceWorker' in navigator) {
     .catch(err => console.log('Ошибка регистрации SW:', err));
 }
 </script>
-
+<script src="lang.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
+
+
