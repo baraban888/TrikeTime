@@ -3,13 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TrikeTime</title>
+    g<title>TrikeTime</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#4facfe">
 
 </head>
 <body>
+    <body>
+    <!-- Переключатель языков -->
+    <div class="lang-switcher" style="text-align: right; margin: 10px;">
+        <button onclick="setLanguage('en')">EN</button>
+        <button onclick="setLanguage('ru')">RU</button>
+        <button onclick="setLanguage('uk')">UA</button>
+        <button onclick="setLanguage('pl')">PL</button>
+    </div>
+
+    <div class="container">
+        <h1 id="title">TrikeTime</h1>
+        <div class="status-card">
+            <p id="status">Смена не начата</p>
+            <p id="timer" style="display:none; font-size: 24px; margin: 10px 0;">00:00:00</p>
+            <button id="shiftBtn">Начать смену</button>
+        </div>
+
+        <div class="history-card">
+            <h2 id="historyTitle">История смен</h2>
+            <ul id="historyList"></ul>
+            <button id="clearHistoryBtn" class="clear-btn">Очистить историю</button>
+            <button id="downloadHistoryBtn" class="download-btn">Скачать историю (CSV)</button>
+        </div>
+    </div>
+
+    <!-- Подключение скриптов -->
+    <script src="lang.js"></script>
+    <script src="app.js"></script>
+</body>
+
     <div class="lang-switcher" style="text-align: right; margin: 10px;">
     <button onclick="setLanguage('en')">EN</button>
     <button onclick="setLanguage('ru')">RU</button>
@@ -18,7 +48,7 @@
 </div>
 
     <div class="container">
-        <h1>TrikeTime</h1>
+        <h1 id="title>">TrikeTime</h1>
         <div class="status-card">
             <p id="status">Смена не начата</p>
             <p id="timer" style="display:none; font-size: 24px; margin: 10px 0;">00:00:00</p>
@@ -26,10 +56,10 @@
         </div>
 
         <div class="history-card">
-            <h2>История смен</h2>
+            <h2 id="historyTitle">История смен</h2>
             <ul id="historyList"></ul>
-            <button id="clearHistoryBtn" class="clear-btn">Очистить историю</button>
-            <button id="downloadHistoryBtn" class="download-btn">Скачать историю (CSV)</button>
+            <button id="clearHistoryBtn">Очистить историю</button>
+            <button id="downloadHistoryBtn">Скачать историю (CSV)</button>
         </div>
     </div>
 
@@ -158,8 +188,6 @@ if ('serviceWorker' in navigator) {
     .catch(err => console.log('Ошибка регистрации SW:', err));
 }
 </script>
-<script src="lang.js"></script>
-<script src="app.js"></script>
 </body>
 </html>
 
