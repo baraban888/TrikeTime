@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 import os
 app = Flask(__name__, template_folder='templates', static_folder='static')
-
+app.config['SEKRET_KEY'] = os.environ.get('SEKRET_KEY','fallback_secret_key')
 # Инициализация базы данных
 def init_db():
     conn = sqlite3.connect('database.db')
@@ -77,10 +77,9 @@ def download_history():
         'Content-Type': 'text/csv',
         'Content-Disposition': 'attachment; filename="history.csv"'
     }
-
+import os
 if __name__ == '__main__':
-    app.run(debug=True)
-port=int (os.environ.get('PORT',5000))
+ port=int (os.environ.get('PORT',5000))
 app.run(host='0.0.0.0.', port=port, debug=False)
 
              
