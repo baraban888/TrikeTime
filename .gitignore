@@ -1,0 +1,45 @@
+.env
+notes.txt
+config.json
+# === Python / Flask ===
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+instance/
+migrations/  # если не хочешь миграции в гите, можно убрать эту строку
+
+# === Virtual environment ===
+.venv/
+venv/
+env/
+
+# === Environment variables ===
+.env
+
+# === Logs and debug files ===
+*.log
+*.pot
+*.mo
+
+# === IDE / OS system files ===
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# === Node.js frontend ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# === Build / cache ===
+dist/
+build/
+.cache/
+*.egg-info/
+coverage/
