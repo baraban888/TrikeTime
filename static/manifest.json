@@ -1,7 +1,8 @@
 {
   "name": "TrikeTime",
   "short_name": "TrikeTime",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#00aee8",
   "theme_color": "#00aee8",

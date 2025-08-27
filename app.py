@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, current_app
 from flask_cors import CORS
 import sqlite3
 import os
@@ -23,7 +23,7 @@ def home():
 # Отдаём сервис-воркер из корня
 @app.route('/service-worker.js')
 def service_worker():
-    return send_from_directory('.', 'service-worker.js','mimetype=application/javascript')
+    return send_from_directory(current_app.root_path, 'service-worker.js', mimetype='application/javascript')
 
 
 # ---------- БАЗА ДАННЫХ ----------

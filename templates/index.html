@@ -159,6 +159,32 @@ if ('serviceWorker' in navigator) {
       window.restore24After45 = restore24After45; // экспортируем наружу
     })();
     </script>
+    <!-- Кнопка установки PWA -->
+    <button id="installBtn" style="display:none">Установить TrikeTime</button>
+<script>
+  let deferredPrompt;
+  const btn = document.getElementById('installBtn');
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    btn.style.display = 'inline-block';
+  });
+
+  btn.addEventListener('click', async () => {
+    btn.style.display = 'none';
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log('PWA install:', outcome);
+    deferredPrompt = null;
+  });
+
+  window.addEventListener('appinstalled', () => {
+    console.log('TrikeTime installed');
+  });
+</script>
+
 
     <!-- ядро приложения -->
     <script src="/static/core.js"></script>
