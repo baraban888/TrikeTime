@@ -1,0 +1,1 @@
+web: gnicor app:app
