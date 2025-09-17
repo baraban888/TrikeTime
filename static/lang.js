@@ -37,7 +37,8 @@ document.getElementById("status").textContent =
 
 function stopTimer() {
     clearInterval(timerInterval);
-    document.getElementById("status").textContent = "Смена завершена";
+     const currentLang = localStorage.getItem("lang") || "RU";
+    document.getElementById("status").textContent = translations[currentLang].shiftFinished;
     localStorage.removeItem("shiftStartTime");
 }
 

@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="512x512" href="/static/icon-512.png">
 
 <!-- Для iOS (необязательно, но полезно) -->
-<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
 </head>
 <body>
@@ -160,7 +160,7 @@ if ('serviceWorker' in navigator) {
     })();
     </script>
     <!-- Кнопка установки PWA -->
-    <button id="installBtn" style="display:none">Установить TrikeTime</button>
+    <button id="installBtn" style="display:none">Download</button>
 <script>
   let deferredPrompt;
   const btn = document.getElementById('installBtn');
