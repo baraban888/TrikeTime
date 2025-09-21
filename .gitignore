@@ -43,3 +43,4 @@ build/
 .cache/
 *.egg-info/
 coverage/
+dist/
