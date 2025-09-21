@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>TrikeTime</title>
+    <style>
+        :root { --gap:12px; --radius:14px; }
+        * { box-sizing: border-box; }
+        body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+                     background:#f6f7fb; color:#1b1f23; }
+        .topbar { background:#2f6fca; color:#fff; padding:14px 16px; text-align:center; font-weight:600; }
+        .page { max-width:520px; margin:0 auto; padding:16px; }
+        h2 { margin:12px 0 8px; font-size:18px; }
+        .card { background:#fff; border-radius:16px; box-shadow:0 1px 3px rgba(0,0,0,.06);
+                        padding:16px; margin:12px 0; }
+        .state { display:flex; align-items:center; gap:10px; font-size:18px; }
+        .muted { color:#667085; font-size:14px; }
+        .chips { display:flex; gap:8px; margin-top:8px; }
+        .chip { border-radius:999px; padding:6px 10px; font-weight:600; font-size:14px; color:#fff; }
+        .chip.blue{ background:#4c78ff; } .chip.green{ background:#2fb171; } .chip.yellow{ background:#f3b335; }
+
+        .bar-wrap { background:#e9ecf3; border-radius:10px; height:16px; overflow:hidden; margin:10px 0 4px; }
+        .bar { height:100%; display:flex; width:100%; }
+        .seg { height:100%; }
+        .seg.drive{ background:#4c78ff; }
+        .seg.rest{ background:#2fb171; }
+        .seg.other{ background:#d9dee7; }
+        .seg.limit{ background:#f3b335; }
+
+        .times { display:flex; justify-content:space-between; font-size:12px; color:#6b7280; }
+
+        .grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:var(--gap); }
+        .btn { display:flex; flex-direction:column; align-items:center; gap:6px; padding:12px;
+                     background:#fff; border:1px solid #e5e7eb; border-radius:16px; cursor:pointer;
+                     box-shadow:0 1px 2px rgba(0,0,0,.04); }
+        .btn:active { transform: scale(.98); }
+        .btn.big { width:100%; padding:12px 14px; display:flex; flex-direction:row; gap:10px; justify-content:center; }
+
+        .list { margin:0; padding-left:18px; }
+        .list li { margin:4px 0; }
+        a.linklike { display:block; text-align:center; text-decoration:none; color:#1b1f23; background:#fff;
+                                 border:1px solid #e5e7eb; padding:12px; border-radius:16px; }
+    </style>
+</head>
+<body>
+    <div class="topbar">TrikeTime</div>
+    <div class="page">
+
+        <div class="card">
+            <h2>Текущее состояние:</h2>
+            <div class="state">
+                <span id="stateIcon">🚚</span>
+                <strong id="stateText">Езда (00:00)</strong>
+            </div>
+            <div class="muted" id="toRest">Осталось до отдыха: --:--</div>
+
+            <div class="chips">
+                <div class="chip blue">10</div>
+                <div class="chip green">9</div>
+                <div class="chip yellow">24</div>
+            </div>
+
+            <div class="bar-wrap">
+                <div class="bar" id="bar">
+                    <div class="seg drive"  id="segDrive"  style="width:40%"></div>
+                    <div class="seg rest"   id="segRest"   style="width:20%"></div>
+                    <div class="seg other"  id="segOther"  style="width:25%"></div>
+                    <div class="seg limit"  id="segLimit"  style="width:15%"></div>
+                </div>
+            </div>
+            <div class="times"><span id="tStart">7:00</span><span id="tMid">9:30</span><span id="tEnd">11:00</span></div>
+        </div>
+
+        <div class="card">
+            <h2>Ручное переключение:</h2>
+            <div class="grid">
+                <button class="btn" id="btnDrive">🚚<div>Езда</div></button>
+                <button class="btn" id="btnRest">🛏️<div>Отдых</div></button>
+                <button class="btn" id="btnOther">🔨<div>Др. работы</div></button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="grid" style="grid-template-columns:1fr;">
+                <a class="linklike" id="dlCsv" href="#">📁 Скачать историю</a>
+                <button class="btn big" id="btnClear">🗑️ Очистить историю</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Последние записи</h2>
+            <ul class="list" id="historyList"></ul>
+            <div class="muted" id="statusLine">Статус: idle</div>
+        </div>
+    </div>
+
+    <script>
+        // Если домен другой — замени строку ниже на свой Render URL.
+        const API_BASE = "https://triketime1.onrender.com";
+
+        const el = (id) => document.getElementById(id);
+        const stateText = el("stateText");
+        const stateIcon = el("stateIcon");
+        const toRest    = el("toRest");
+        const histList  = el("historyList");
+        const statusLine= el("statusLine");
+
+        async function api(path, opts={}) {
+            const res = await fetch(API_BASE + path, {
+                headers: { "Content-Type": "application/json" },
+                ...opts,
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const ct = res.headers.get("content-type") || "";
+            return ct.includes("application/json") ? res.json() : res.text();
+        }
+
+        function parseTS(s){
+            if (!s) return null;
+            const t = s.replace(" ", "T");
+            const d = new Date(t);
+            return isNaN(d) ? null : d;
+        }
+
+        function fmtMin(min){
+            const m = Math.max(0, Math.floor(min));
+            const hh = String(Math.floor(m/60)).padStart(2,"0");
+            const mm = String(m%60).padStart(2,"0");
+            return `${hh}:${mm}`;
+        }
+
+        function setBar(drivePct=40, restPct=20, otherPct=25, limitPct=15){
+            el("segDrive").style.width = drivePct + "%";
+            el("segRest").style.width  = restPct  + "%";
+            el("segOther").style.width = otherPct + "%";
+            el("segLimit").style.width = limitPct + "%";
+        }
+
+        async function refresh(){
+            try{
+                statusLine.textContent = "Статус: загружаю…";
+                const rows = await api("/history", { method: "GET" });
+
+                histList.innerHTML = "";
+                rows.forEach(([id, start, end])=>{
+                    const li = document.createElement("li");
+                    li.textContent = `${id}: ${start} — ${end || "…"}`
+                    histList.appendChild(li);
+                });
+
+                const last = rows[0];
+                let drivingMinutes = 0;
+                if (last && last[2] === null){
+                    const start = parseTS(last[1]);
+                    const now   = new Date();
+                    drivingMinutes = (now - start) / 60000;
+                    stateText.textContent = `Езда (${fmtMin(drivingMinutes)})`;
+                    stateIcon.textContent = "🚚";
+                } else {
+                    stateText.textContent = "Отдых";
+                    stateIcon.textContent = "🛏️";
+                }
+
+                const limit = 270; // 4ч30м
+                const left = Math.max(0, limit - drivingMinutes);
+                toRest.textContent = "Осталось до отдыха: " + fmtMin(left);
+
+                setBar(Math.min(100, (drivingMinutes/limit)*70), 20, 5, 5);
+
+                statusLine.textContent = "Статус: готово";
+            }catch(e){
+                statusLine.textContent = "Ошибка: " + e.message;
+            }
+        }
+
+        el("btnDrive").onclick = async () => {
+            statusLine.textContent = "Стартую смену…";
+            try{
+                await api("/start_shift", { method:"POST", body:"{}" });
+                await refresh();
+            }catch(e){ statusLine.textContent = "Ошибка: " + e.message; }
+        };
+
+        el("btnRest").onclick = async () => {
+            statusLine.textContent = "Завершаю смену…";
+            try{
+                await api("/end_shift", { method:"POST", body:"{}" });
+                await refresh();
+            }catch(e){ statusLine.textContent = "Ошибка: " + e.message; }
+        };
+
+        el("btnOther").onclick = () => {
+            alert("Режим 'Другие работы' пока заглушка — добавим эндпоинт позже.");
+        };
+
+        el("btnClear").onclick = async () => {
+            if (!confirm("Очистить историю?")) return;
+            try{
+                await api("/clear_history", { method:"POST", body:"{}" });
+                await refresh();
+            }catch(e){ alert(e.message); }
+        };
+
+        el("dlCsv").onclick = (ev) => {
+            ev.preventDefault();
+            window.location.href = API_BASE + "/download_history";
+        };
+
+        refresh();
+    </script>
+</body>
+</html>
