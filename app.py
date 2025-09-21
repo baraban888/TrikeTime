@@ -8,11 +8,25 @@ from dotenv import load_dotenv
 # Загружаем переменные окружения из .env (если файл есть)
 load_dotenv()
 
-app = Flask(__name__, template_folder="templates", static_folder="static")
+app = Flask(__name__, template_folder="triketime-spa/dist", static_folder="triketime-spa/dist",static_url_path="")
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "fallback_secret_key")
 
 # Разрешаем CORS (на будущее, если фронт будет обращаться к API)
 CORS(app)
+
+# ассеты Vite 
+@app.route("/assets/<path:filename>")
+def assets(filename):
+    return send_from_directory(app.static_folder + "/assets", filename)
+
+# SPA-фоллбэк: всё не /api/* отдаём index.html
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def spa(path):
+    # если запрос начинается с "api/" → не перехватываем
+    if path.startswith("api/"):
+        return "Not Found", 404
+    return send_from_directory(app.template_folder, "index.html")
 
 DB_PATH = "database.db"
 # Главная страница
@@ -23,7 +37,7 @@ def home():
 # Отдаём сервис-воркер из корня
 @app.route('/service-worker.js')
 def service_worker():
-    return send_from_directory(current_app.root_path, 'service-worker.js', mimetype='application/javascript')
+    return send_from_directory(current_app.root_path, 'service-worker.js',mimetype='application/javascript')
 
 @app.route("/api/ping", methods=["GET"])
 def api_ping():
