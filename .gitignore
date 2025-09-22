@@ -1,28 +1,26 @@
-.env
-notes.txt
-config.json
 # === Python / Flask ===
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.sqlite3
 *.db
+*.sqlite3
 instance/
-migrations/  # если не хочешь миграции в гите, можно убрать эту строку
+.mypy_cache/
+.pytest_cache/
 
 # === Virtual environment ===
 .venv/
 venv/
-env/
+ENV/
 
 # === Environment variables ===
 .env
+*.env
 
-# === Logs and debug files ===
+# === Logs / Debug ===
 *.log
 *.pot
-*.mo
 
 # === IDE / OS system files ===
 .vscode/
@@ -30,17 +28,21 @@ env/
 .DS_Store
 Thumbs.db
 
-# === Node.js frontend ===
+# === Node.js / Frontend ===
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+package-lock.json
 
-# === Build / cache ===
+# === Build / Cache (React / Vite) ===
 dist/
 build/
 .cache/
-*.egg-info/
 coverage/
-dist/
+*.local
+
+# === Other ===
+*.bak
+
