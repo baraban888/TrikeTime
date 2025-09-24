@@ -223,7 +223,7 @@ init_db()
 
 
 
-@app.route("/start_shift", methods=["POST"])
+@app.route("/api/start_shift", methods=["POST"])
 def start_shift():
     start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with sqlite3.connect(DB_PATH) as conn:
@@ -236,7 +236,7 @@ def start_shift():
     return jsonify({"status": "started", "start_time": start_time})
 
 
-@app.route("/end_shift", methods=["POST"])
+@app.route("/api/end_shift", methods=["POST"])
 def end_shift():
     end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with sqlite3.connect(DB_PATH) as conn:
@@ -249,13 +249,13 @@ def end_shift():
     return jsonify({"status": "ended", "end_time": end_time})
 
 
-@app.route("/history", methods=["GET"])
+@app.route("/api/history", methods=["GET"])
 def history():
     rows = db_rows(limit=10)
     return jsonify(rows)
 
 
-@app.route("/clear_history", methods=["POST"])
+@app.route("/api/clear_history", methods=["POST"])
 def clear_history():
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
@@ -264,7 +264,7 @@ def clear_history():
     return jsonify({"status": "cleared"})
 
 
-@app.route("/download_history", methods=["GET"])
+@app.route("/api/download_history", methods=["GET"])
 def download_history():
     rows = db_rows()
     # Готовим CSV (первая строка — заголовки)

@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="ru">
 <head>
+    <!-- build: v0.1.0 (2025-09-24) -->
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>TrikeTime</title>
@@ -97,7 +98,7 @@
 
     <script>
         // Если домен другой — замени строку ниже на свой Render URL.
-        const API_BASE = "https://triketime.pl";
+        const API_BASE = "/api";
 
         const el = (id) => document.getElementById(id);
         const stateText = el("stateText");
@@ -190,9 +191,14 @@
             }catch(e){ statusLine.textContent = "Ошибка: " + e.message; }
         };
 
-        el("btnOther").onclick = () => {
-            alert("Режим 'Другие работы' пока заглушка — добавим эндпоинт позже.");
+        el('btnOther').onclick = async () => {
+            statusLine.textContent = "Включаю 'Другие работы'…";
+            try{
+                await api("/start_other", { method:"POST", body:"{}" });
+                await refresh();
+            }catch(e){ statusLine.textContent = "Ошибка: " + e.message; }
         };
+
 
         el("btnClear").onclick = async () => {
             if (!confirm("Очистить историю?")) return;
@@ -212,7 +218,7 @@
 <script>
 /* не регистрируем SW локально */
 if ('serviceWorker' in navigator && !['localhost','127.0.0.1'].includes(location.hostname)) {
-  navigator.serviceWorker.register('/service-worker.js');
+  navigator.serviceWorker.register('/service-worker.js?v=11');
 }
 </script>
 
