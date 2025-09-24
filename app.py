@@ -19,25 +19,43 @@ CORS(app)
 def assets(filename):
     return send_from_directory(app.static_folder + "/assets", filename)
 
-# SPA-фоллбэк: всё не /api/* отдаём index.html
-@app.route("/", defaults={"path": ""})
-@app.route("/<path:path>")
+# где лежит НОВЫЙ фронт
+FRONT_DIR = "triketime-spa/public/triketime-beta"
+
+app = Flask(__name__, static_folder=FRONT_DIR, template_folder=FRONT_DIR)
+
+# на время разработки выключим кэш
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.jinja_env.cache = {}
+
+@app.after_request
+def no_cache(resp):
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
+
+# ===== SPA-фолбэк =====
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
 def spa(path):
-    # если запрос начинается с "api/" → не перехватываем
-    if path.startswith("api/"):
+    # не перехватываем API
+    if path.startswith('api/'):
         return "Not Found", 404
-    return send_from_directory(app.template_folder, "index.html")
+    # сначала пытаемся отдать статический файл (css/js/png)
+    try:
+        return send_from_directory(app.static_folder, path)
+    except Exception:
+        # иначе всегда index.html
+        return send_from_directory(app.template_folder, 'index.html')
 
-DB_PATH = "database.db"
-# Главная страница
-@app.route('/',endpoint='home')
-def home():
-    return render_template('index.html')
-
-# Отдаём сервис-воркер из корня
+# service worker из той же папки
 @app.route('/service-worker.js')
 def service_worker():
-    return send_from_directory(current_app.root_path, 'service-worker.js',mimetype='application/javascript')
+    return send_from_directory(app.static_folder, 'service-worker.js',
+                               mimetype='application/javascript')
+
 
 @app.route("/api/ping", methods=["GET"])
 def api_ping():

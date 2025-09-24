@@ -97,7 +97,7 @@
 
     <script>
         // Если домен другой — замени строку ниже на свой Render URL.
-        const API_BASE = "https://triketime1.onrender.com";
+        const API_BASE = "https://triketime.pl";
 
         const el = (id) => document.getElementById(id);
         const stateText = el("stateText");
@@ -209,5 +209,12 @@
 
         refresh();
     </script>
+<script>
+/* не регистрируем SW локально */
+if ('serviceWorker' in navigator && !['localhost','127.0.0.1'].includes(location.hostname)) {
+  navigator.serviceWorker.register('/service-worker.js');
+}
+</script>
+
 </body>
 </html>
