@@ -4,3 +4,46 @@ WARNING: This is a development server. Do not use it in a production deployment.
  * Running on http://127.0.0.1:5000
  * Running on http://10.165.227.183:5000
 Press CTRL+C to quit
+127.0.0.1 - - [08/Oct/2025 17:28:39] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 17:28:39] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:24:23] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:24:23] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:24:25] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:24:25] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:24:34] "POST /api/clear_history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:24:47] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:24:58] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:24:58] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:24:58] "GET /favicon.ico HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:25:08] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:25:18] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:25:28] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:25:38] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:25:48] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:26:26] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:26:27] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:26:38] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:26:48] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:26:58] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:27:08] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:27:18] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:27:28] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:28:35] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:29:35] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:30:35] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:31:35] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:32:35] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:33:35] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:34:35] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:34:36] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:34:36] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:34:46] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:34:56] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:35:06] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:35:16] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:35:26] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:35:36] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:36:35] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:37:28] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:37:36] "GET /api/history HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2025 18:37:46] "GET /api/history HTTP/1.1" 200 -
