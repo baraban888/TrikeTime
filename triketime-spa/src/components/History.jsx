@@ -1,114 +1,196 @@
-// src/components/History.jsx
-import { useEffect, useState } from "react";
-
-// Преобразуем "YYYY-MM-DD HH:MM:SS[+00:00]" в локальную дату/время
-function fmt(dt) {
-  if (!dt) return "—";
-  // Превратим "2025-09-17 10:00:00" в ISO-вид
-  const iso = dt.includes("T") ? dt : dt.replace(" ", "T");
-  const d = new Date(iso);
-  if (isNaN(d)) return dt; // если что-то экзотическое — показываем как есть
-
-  return d.toLocaleString([], {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function duration(start, end) {
-  if (!start || !end) return "—";
-  const a = new Date((start.includes("T") ? start : start.replace(" ", "T")));
-  const b = new Date((end.includes("T") ? end : end.replace(" ", "T")));
-  const ms = Math.max(0, b - a);
-  const m = Math.round(ms / 60000);
-  const h = Math.floor(m / 60);
-  const mm = String(m % 60).padStart(2, "0");
-  return `${h}:${mm}`;
-}
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import "../App.css";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5000";
+const INTERVAL_OPTIONS = [10, 30, 60, 300];         // варианты автообновления (сек)
+const LS_INTERVAL_KEY = "tt_auto_refresh_sec";      // ключ для localStorage
 
 export default function History() {
   const [rows, setRows] = useState([]);
-  const [err, setErr] = useState("");
+  const [err, setErr] = useState("");               // текст ошибки (желтая плашка)
+  const [info, setInfo] = useState("");             // текст успеха (зелёная плашка)
+  const [loading, setLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [online, setOnline] = useState(navigator.onLine);
 
-  async function loadHistory() {
-    try {
-      setErr("");
-      const res = await fetch(`${API_BASE}/api/history`);
-      if (!res.ok) throw new Error(`History HTTP ${res.status}`);
-      const data = await res.json();
-      setRows(data);
-    } catch (e) {
-      setErr(`Ошибка загрузки: ${e.message}`);
-    }
-  }
+  // загружаем интервал из localStorage (дефолт 30 сек)
+  const [intervalSec, setIntervalSec] = useState(() => {
+    const v = Number(localStorage.getItem(LS_INTERVAL_KEY));
+    return INTERVAL_OPTIONS.includes(v) ? v : 30;
+  });
+  const [countdown, setCountdown] = useState(intervalSec);
 
-  async function createSessionNow() {
-    try {
-      setErr("");
-      const nowIso = new Date().toISOString(); // временно start=end=сейчас
-      const res = await fetch(`${API_BASE}/api/sessions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ start_time: nowIso, end_time: nowIso }),
-      });
-      if (!res.ok) throw new Error(`Create HTTP ${res.status}`);
-      await res.json();
-      await loadHistory(); // обновим таблицу
-    } catch (e) {
-      setErr(`Ошибка создания: ${e.message}`);
-    }
-  }
+  const intervalIdRef = useRef(null);
+  const tickerIdRef = useRef(null);
+  const fadeHidden = useMemo(() => ({ opacity: 0 }), []);
 
+  // сохраняем выбранный интервал
   useEffect(() => {
-    loadHistory();
+    localStorage.setItem(LS_INTERVAL_KEY, String(intervalSec));
+  }, [intervalSec]);
+
+  // реагируем на события браузера online/offline
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
+    };
   }, []);
 
+  // --- API ---
+  const loadHistory = async () => {
+    try {
+      setErr("");
+      setInfo("");
+      setLoading(true);
+
+      const res = await fetch(`${API_BASE}/api/history`);
+      if (!res.ok) throw new Error(`history HTTP ${res.status}`);
+
+      const data = await res.json();
+      const safe = Array.isArray(data) ? data :
+                   Array.isArray(data?.items) ? data.items : [];
+      setRows(safe);
+      setLastUpdated(new Date());
+      setCountdown(intervalSec);
+      setOnline(true); // успешно сходили — считаем онлайн
+    } catch (e) {
+      setRows([]);
+      setErr(`Сервер тимчасово недоступний: ${e.message}`);
+      setOnline(false);
+      // авто-скрытие ошибки через 6 сек
+      setTimeout(() => setErr(""), 6000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearHistory = async () => {
+    try {
+      setErr("");
+      const res = await fetch(`${API_BASE}/api/clear_history`, { method: "POST" });
+      if (!res.ok) throw new Error(`clear_history HTTP ${res.status}`);
+
+      setRows([]);
+      setInfo("✅ Історію очищено");
+      setLastUpdated(new Date());
+      // авто-скрытие инфо через 5 сек
+      setTimeout(() => setInfo(""), 5000);
+    } catch (e) {
+      setErr(`Помилка очищення: ${e.message}`);
+      setTimeout(() => setErr(""), 6000);
+    }
+  };
+
+  // --- автообновление по интервалу + обратный отсчёт ---
+  useEffect(() => {
+    loadHistory(); // стартуем сразу
+
+    if (intervalIdRef.current) clearInterval(intervalIdRef.current);
+    intervalIdRef.current = setInterval(loadHistory, intervalSec * 1000);
+
+    if (tickerIdRef.current) clearInterval(tickerIdRef.current);
+    setCountdown(intervalSec);
+    tickerIdRef.current = setInterval(() => {
+      setCountdown((c) => (c > 0 ? c - 1 : intervalSec));
+    }, 1000);
+
+    return () => {
+      clearInterval(intervalIdRef.current);
+      clearInterval(tickerIdRef.current);
+    };
+  }, [intervalSec]);
+
   return (
-    <div style={{ padding: 24, fontFamily: "system-ui, Arial, sans-serif" }}>
-      <h1 style={{ fontSize: 48, margin: "16px 0 24px" }}>История смен</h1>
+    <div className="container">
+      {/* статус соединения */}
+      <div className="status">
+        <span className={`status-dot ${online ? "status-online" : "status-offline"}`} />
+        {online ? "З’єднання з сервером: онлайн" : "З’єднання з сервером: офлайн"}
+      </div>
 
-      <button onClick={createSessionNow} style={{ padding: "6px 12px" }}>
-        Создать смену (сейчас)
-      </button>
-
+      {/* Ошибка (жёлтая плашка) */}
       {err && (
-        <div style={{ color: "crimson", marginTop: 12 }}>
-          {err}
+        <div className="alert alert-warn" style={err ? {} : fadeHidden}>
+          <span>⚠️ {err}</span>
+          <button className="btn btn-warn" onClick={loadHistory}>
+            Повторить
+          </button>
         </div>
       )}
 
-      <table
-        style={{
-          marginTop: 16,
-          borderCollapse: "collapse",
-          minWidth: 420,
-          fontSize: 14,
-        }}
-      >
-        <thead>
-          <tr>
-            <th style={{ border: "1px solid #ccc", padding: 8 }}>ID</th>
-            <th style={{ border: "1px solid #ccc", padding: 8 }}>Начало</th>
-            <th style={{ border: "1px solid #ccc", padding: 8 }}>Конец</th>
-            <th style={{ border: "1px solid #ccc", padding: 8 }}>Dlitelnost</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.id}>
-              <td style={{ border: "1px solid #ccc", padding: 8 }}>{r.id}</td>
-              <td style={{ border: "1px solid #ccc", padding: 8 }}>{fmt(r.start_time)}</td>
-              <td style={{ border: "1px solid #ccc", padding: 8 }}>{fmt(r.end_time)}</td>
-              <td style={{ border: "1px solid #ccc", padding: 8 }}>{duration(r.start_time, r.end_time)}</td>
-            </tr>
+      {/* Успех (зелёная плашка, плавное исчезновение) */}
+      {info && (
+        <div className="alert alert-success" style={info ? {} : fadeHidden}>
+          {info}
+        </div>
+      )}
+
+      {/* Панель автообновления */}
+      <div className="toolbar">
+        <span className="meta">Автообновление:</span>
+        <select
+          className="select"
+          value={intervalSec}
+          onChange={(e) => setIntervalSec(Number(e.target.value))}
+          title="Интервал автообновления"
+        >
+          {INTERVAL_OPTIONS.map((s) => (
+            <option key={s} value={s}>{s} сек</option>
           ))}
-        </tbody>
-      </table>
+        </select>
+        <span className="meta">• Следующее через: {countdown}s</span>
+        <button
+          className={`link-btn ${online ? "" : "disabled"}`}
+          onClick={online ? loadHistory : undefined}
+          title={online ? "Обновить сейчас" : "Без з’єднання"}
+          aria-disabled={!online}
+        >
+          Обновить сейчас
+        </button>
+      </div>
+
+      {/* Индикатор загрузки */}
+      {loading && (
+        <div style={{ marginBottom: 8 }}>
+          <span className="spinner" /> Загрузка…
+        </div>
+      )}
+
+      {/* Последнее обновление */}
+      <div className="meta" style={{ marginBottom: 8 }}>
+        {lastUpdated ? `Оновлено: ${lastUpdated.toLocaleTimeString()}` : "Ще не оновлювалось"}
+      </div>
+
+      {/* Список записей */}
+      <div>
+        {(Array.isArray(rows) ? rows : []).map((r) => (
+          <div key={r.id} className="list-item">
+            <div><b>ID:</b> {r.id}</div>
+            <div><b>Старт:</b> {r.start_time}</div>
+            <div><b>Фініш:</b> {r.end_time ?? "—"}</div>
+          </div>
+        ))}
+
+        {!loading && (!rows || rows.length === 0) && !err && !info && (
+          <div className="meta">Поки що немає записів.</div>
+        )}
+      </div>
+
+      {/* Очистка истории (выключается офлайн) */}
+      <button
+        className={`btn btn-danger ${online ? "" : "disabled"}`}
+        onClick={online ? clearHistory : undefined}
+        title={online ? "Удалить все записи из истории" : "Без з’єднання"}
+        disabled={!online}
+        style={{ marginTop: 16 }}
+      >
+        Очистить историю
+      </button>
     </div>
   );
 }

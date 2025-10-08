@@ -8,8 +8,31 @@ from dotenv import load_dotenv
 # Загружаем переменные окружения из .env (если файл есть)
 load_dotenv()
 
-app = Flask(__name__, template_folder="triketime-spa/dist", static_folder="triketime-spa/dist",static_url_path="")
+# ---------- БАЗА ДАННЫХ ----------
+DB_PATH = "database.db"
+
+def init_db():
+    """Создаёт таблицу, если её ещё нет."""
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS shifts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                start_time TEXT,
+                end_time   TEXT
+            )
+        """)
+        conn.commit()
+
+# где лежит НОВЫЙ фронт
+FRONT_DIR = "triketime-spa/public/triketime-beta"
+
+app = Flask(__name__, static_folder=FRONT_DIR, template_folder=FRONT_DIR)
+
+
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "fallback_secret_key")
+
+init_db()
 
 # Разрешаем CORS (на будущее, если фронт будет обращаться к API)
 CORS(app)
@@ -18,11 +41,6 @@ CORS(app)
 @app.route("/assets/<path:filename>")
 def assets(filename):
     return send_from_directory(app.static_folder + "/assets", filename)
-
-# где лежит НОВЫЙ фронт
-FRONT_DIR = "triketime-spa/public/triketime-beta"
-
-app = Flask(__name__, static_folder=FRONT_DIR, template_folder=FRONT_DIR)
 
 # на время разработки выключим кэш
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
@@ -53,7 +71,7 @@ def spa(path):
 # service worker из той же папки
 @app.route('/service-worker.js')
 def service_worker():
-    return send_from_directory(app.static_folder, 'service-worker.js',
+    return send_from_directory(os.path.dirname(__file__), 'service-worker.js',
                                mimetype='application/javascript')
 
 
@@ -186,22 +204,7 @@ if app.debug:
         conn.commit()
         return jsonify(ok=True), 201
 
-# ---------- БАЗА ДАННЫХ ----------
-# ---------- БАЗА ДАННЫХ ----------
-DB_PATH = "database.db"
 
-def init_db():
-    """Создаёт таблицу, если её ещё нет."""
-    with sqlite3.connect(DB_PATH) as conn:
-        c = conn.cursor()
-        c.execute("""
-            CREATE TABLE IF NOT EXISTS shifts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                start_time TEXT,
-                end_time   TEXT
-            )
-        """)
-        conn.commit()
 
 def db_rows(limit=None):
     """Возвращает список смен (последние сверху)."""
@@ -213,56 +216,71 @@ def db_rows(limit=None):
         c.execute(sql)
         return c.fetchall()
 
-init_db()
-# ----------------------------------
-
-# ----------------------------------
-
-
 # ---------- РОУТЫ ----------
-
-
 
 @app.route("/api/start_shift", methods=["POST"])
 def start_shift():
     start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with sqlite3.connect(DB_PATH) as conn:
-        c = conn.cursor()
-        c.execute(
-            "INSERT INTO shifts (start_time, end_time) VALUES (?, ?)",
-            (start_time, None),
-        )
-        conn.commit()
-    return jsonify({"status": "started", "start_time": start_time})
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cur = conn.cursor()
+            # проверяем, нет ли незакрытой смены
+            open_exists = cur.execute("SELECT 1 FROM shifts WHERE end_time IS NULL LIMIT 1").fetchone()
+            if open_exists:
+                return jsonify(error="shift already started"), 409
 
+            cur.execute(
+                "INSERT INTO shifts (start_time, end_time) VALUES (?, ?)",
+                (start_time, None)
+            )
+            conn.commit()
+        return jsonify(status="started", start_time=start_time), 200
+    except Exception as e:
+        return jsonify(error=str(e)), 500
 
 @app.route("/api/end_shift", methods=["POST"])
 def end_shift():
     end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with sqlite3.connect(DB_PATH) as conn:
-        c = conn.cursor()
-        c.execute(
-            "UPDATE shifts SET end_time = ? WHERE end_time IS NULL",
-            (end_time,),
-        )
-        conn.commit()
-    return jsonify({"status": "ended", "end_time": end_time})
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cur = conn.cursor()
+            # обновляем только последнюю открытую (на случай мусора)
+            cur.execute("""
+                UPDATE shifts
+                   SET end_time = ?
+                 WHERE id = (
+                        SELECT id FROM shifts
+                         WHERE end_time IS NULL
+                         ORDER BY id DESC
+                         LIMIT 1
+                 )
+            """, (end_time,))
+            if cur.rowcount == 0:
+                return jsonify(error="no open shift"), 409
+            conn.commit()
+        return jsonify(status="ended", end_time=end_time), 200
+    except Exception as e:
+        return jsonify(error=str(e)), 500
 
-
-@app.route("/api/history", methods=["GET"])
-def history():
-    rows = db_rows(limit=10)
-    return jsonify(rows)
-
+@app.route("/api/history", methods=["GET"], endpoint="api_history_get")
+def api_history_get():
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            rows = conn.execute(
+                "SELECT id, start_time, end_time FROM shifts ORDER BY id DESC"
+            ).fetchall()
+        data = [{"id": r[0], "start_time": r[1], "end_time": r[2]} for r in rows]
+        return jsonify(data), 200
+    except Exception as e:
+        # Всегда возвращаем МАССИВ, даже при ошибке
+        return jsonify([]), 200
 
 @app.route("/api/clear_history", methods=["POST"])
 def clear_history():
     with sqlite3.connect(DB_PATH) as conn:
-        c = conn.cursor()
-        c.execute("DELETE FROM shifts")
+        conn.execute("DELETE FROM shifts")
         conn.commit()
-    return jsonify({"status": "cleared"})
-
+    return jsonify(status="cleared"), 200
 
 @app.route("/api/download_history", methods=["GET"])
 def download_history():
