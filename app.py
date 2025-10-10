@@ -1,41 +1,90 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory, current_app
+from flask import Flask, render_template, request, jsonify, send_from_directory, current_app, make_response
 from flask_cors import CORS
 import sqlite3
 import os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
+from sqlalchemy import select, update
+from sqlalchemy.orm import joinedload
+from db import engine, SessionLocal, create_tables
+from models import Base, User, Shift, RefreshToken
+from auth import register_user, login_user, require_auth, make_access, make_refresh, verify_refresh, set_refresh_cookie, clear_refresh_cookie
 
 # Загружаем переменные окружения из .env (если файл есть)
 load_dotenv()
+create_tables()
 
 # ---------- БАЗА ДАННЫХ ----------
 DB_PATH = "database.db"
-
-def init_db():
-    """Создаёт таблицу, если её ещё нет."""
-    with sqlite3.connect(DB_PATH) as conn:
-        c = conn.cursor()
-        c.execute("""
-            CREATE TABLE IF NOT EXISTS shifts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                start_time TEXT,
-                end_time   TEXT
-            )
-        """)
-        conn.commit()
 
 # где лежит НОВЫЙ фронт
 FRONT_DIR = "triketime-spa/public/triketime-beta"
 
 app = Flask(__name__, static_folder=FRONT_DIR, template_folder=FRONT_DIR)
 
-
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "fallback_secret_key")
 
-init_db()
+@app.post("/api/login")
+def api_login():
+    data = request.get_json(force=True)
+    # login_user возвращал токен — теперь вернём пользователя и проверим пароль тут
+    username, password = data.get("username"), data.get("password")
+    with SessionLocal() as s:
+        u = s.scalar(select(User).where(User.username == username, User.is_active == True))
+        from passlib.hash import bcrypt
+        if not u or not bcrypt.verify(password, u.password_hash):
+            return {"ok": False, "error": "bad_credentials"}, 401
 
+        access = make_access(u)
+        refresh, jti, _ = make_refresh(u, s)
+
+        resp = make_response({"ok": True, "access": access, "role": u.role})
+        set_refresh_cookie(resp, refresh)
+        return resp
+
+@app.post("/api/refresh")
+def api_refresh():
+    rt_cookie = request.cookies.get("rt")
+    if not rt_cookie:
+        return {"ok": False, "error": "no_refresh"}, 401
+    with SessionLocal() as s:
+        claims = verify_refresh(rt_cookie, s)
+        if not claims:
+            return {"ok": False, "error": "invalid_refresh"}, 401
+
+        # Ротация: помечаем старый refresh как отозванный и выдаём новый
+        s.execute(update(RefreshToken).where(RefreshToken.jti == claims["jti"]).values(revoked=True))
+        user = s.get(User, int(claims["sub"]))
+        access = make_access(user)
+        new_refresh, new_jti, _ = make_refresh(user, s)
+
+        resp = make_response({"ok": True, "access": access})
+        set_refresh_cookie(resp, new_refresh)
+        return resp
+
+@app.post("/api/logout")
+def api_logout():
+    rt_cookie = request.cookies.get("rt")
+    with SessionLocal() as s:
+        if rt_cookie:
+            claims = verify_refresh(rt_cookie, s)
+            if claims:
+                s.execute(update(RefreshToken).where(RefreshToken.jti == claims["jti"]).values(revoked=True))
+                s.commit()
+    resp = make_response({"ok": True})
+    clear_refresh_cookie(resp)
+    return resp
 # Разрешаем CORS (на будущее, если фронт будет обращаться к API)
-CORS(app)
+ALLOWED = [o.strip() for o in os.getenv("ALLOWED_ORIGINS","").split(",") if o.strip()]
+# Разрешаем cookie (refresh) и заголовок Authorization (access)
+CORS(
+    app,
+    resources={r"/api/*": {"origins": ALLOWED}},
+    supports_credentials=True,
+    expose_headers=["Content-Type", "Authorization"],
+    allow_headers=["Content-Type", "Authorization"],
+    methods=["GET","POST","PUT","PATCH","DELETE","OPTIONS"]
+)
 
 # ассеты Vite 
 @app.route("/assets/<path:filename>")
@@ -78,15 +127,6 @@ def service_worker():
 @app.route("/api/ping", methods=["GET"])
 def api_ping():
     return jsonify(ok=True), 200
-
-@app.route("/api/history", methods=["GET"])
-def api_history():
-    rows = db_rows()  # используем твою функцию для выборки из базы
-    data = [
-        {"id": row[0], "start_time": row[1], "end_time": row[2]}
-        for row in rows
-    ]
-    return jsonify(data), 200
 
 # --- helpers ---
 def _parse_dt(value):
@@ -190,31 +230,97 @@ def get_session(session_id):
 
 #_seed_one
 if app.debug:
+# добавь в app.py (если ещё не добавлял)
 
-    @app.route("/api/_seed_one", methods=["POST"])
+    @app.route("/api/seed_one", methods=["POST"])
     def seed_one():
-        import sqlite3, datetime
+        from datetime import datetime, timedelta
+        now = datetime.utcnow()
         with sqlite3.connect(DB_PATH) as conn:
-         c = conn.cursor()
-         now = datetime.datetime.now().replace(microsecond=0).isoformat(sep=" ")
-         c.execute(
-            "INSERT INTO shifts (start_time, end_time) VALUES (?, ?)",
-            (now, now)
-        )
-        conn.commit()
+            conn.execute(
+                "INSERT INTO shifts(start_time, end_time) VALUES(?, ?)",
+                (now.isoformat(), (now+timedelta(minutes=15)).isoformat()))
+            conn.commit()
         return jsonify(ok=True), 201
-
-
-
 def db_rows(limit=None):
-    """Возвращает список смен (последние сверху)."""
+
+         """Возвращает список смен (последние сверху)."""
+         with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            sql = "SELECT id, start_time, end_time FROM shifts ORDER BY id DESC"
+            if limit:
+                sql += f" LIMIT {int(limit)}"
+            c.execute(sql)
+            return c.fetchall()
+
+# -------- РОУТЫ --------
+
+def now_iso():
+    # единый формат UTC-штампа
+    return datetime.now(timezone.utc).isoformat()
+
+def get_open_shift(conn):
+    """Возвращает открытую смену (end_time IS NULL) или None."""
+    r = conn.execute(
+        "SELECT id, start_time FROM shifts WHERE end_time IS NULL ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    return {"id": r[0], "start_time": r[1]} if r else None
+
+@app.route("/api/history", methods=["GET"], endpoint="api_history_get")
+def api_history_get():
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            rows = conn.execute(
+                "SELECT id, start_time, end_time FROM shifts ORDER BY id DESC"
+            ).fetchall()
+        data = [{"id": r[0], "start_time": r[1], "end_time": r[2]} for r in rows]
+        return jsonify(data), 200
+    except Exception as e:
+        # Всегда возвращаем МАССИВ, даже при ошибке
+        return jsonify([]), 200
+    
+@app.route("/api/clear_history", methods=["POST"])
+def clear_history():
+
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("DELETE FROM shifts")
+        conn.commit()
+    return jsonify(status="cleared"), 200
+
+@app.route("/api/download_history", methods=["GET"])
+def download_history():
+    rows = db_rows()  # [(id, start_time, end_time), ...]
+
+    # собираем CSV-строку: заголовок + строки
+    csv_data = "id,start_time,end_time\n"
+    for row in rows:
+        csv_data += f"{row[0]},{row[1]},{row[2] or ''}\n"
+
+    # корректный HTTP-ответ с заголовками (никаких кортежей в return)
+    resp = make_response(csv_data)
+    resp.headers["Content-Type"] = "text/csv; charset=utf-8"
+    resp.headers["Content-Disposition"] = 'attachment; filename="history.csv"'
+    return resp
+   
+
+@app.route("/api/stop_shift", methods=["POST"])
+def stop_shift():
+
+    """Закрывает текущую открытую смену."""
+    ts = now_iso()
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
-        sql = "SELECT id, start_time, end_time FROM shifts ORDER BY id DESC"
-        if limit:
-            sql += f" LIMIT {int(limit)}"
-        c.execute(sql)
-        return c.fetchall()
+        open_shift = get_open_shift(conn)
+        if not open_shift:
+            return jsonify(error="no open shift"), 409
+        c.execute("UPDATE shifts SET end_time=? WHERE id=?", (ts, open_shift["id"]))
+        conn.commit()
+    return jsonify(stopped_id=open_shift["id"], end_time=ts), 200
+
+# опционально: /api/status для health-check
+@app.route("/api/status", methods=["GET"])
+def api_status():
+    return jsonify(ok=True), 200
 
 # ---------- РОУТЫ ----------
 
@@ -262,42 +368,64 @@ def end_shift():
     except Exception as e:
         return jsonify(error=str(e)), 500
 
-@app.route("/api/history", methods=["GET"], endpoint="api_history_get")
-def api_history_get():
-    try:
-        with sqlite3.connect(DB_PATH) as conn:
-            rows = conn.execute(
-                "SELECT id, start_time, end_time FROM shifts ORDER BY id DESC"
-            ).fetchall()
-        data = [{"id": r[0], "start_time": r[1], "end_time": r[2]} for r in rows]
-        return jsonify(data), 200
-    except Exception as e:
-        # Всегда возвращаем МАССИВ, даже при ошибке
-        return jsonify([]), 200
+VALID_ACTIVITIES = {"drive", "rest", "other"}
 
-@app.route("/api/clear_history", methods=["POST"])
-def clear_history():
+def now_iso():
+    return datetime.now(timezone.utc).isoformat()
+
+def get_active_shift(conn):
+    row = conn.execute(
+        "SELECT id, start_time, activity FROM shifts WHERE end_time IS NULL ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    if not row:
+        return None
+    return {"id": row[0], "start_time": row[1], "activity": row[2]}
+
+
+@app.route("/api/activity/current", methods=["GET"])
+def api_activity_current():
     with sqlite3.connect(DB_PATH) as conn:
-        conn.execute("DELETE FROM shifts")
+        active = get_active_shift(conn)
+    return jsonify(active or {}), 200
+
+
+@app.route("/api/activity/start", methods=["POST"])
+def api_activity_start():
+    payload = request.get_json(silent=True) or {}
+    activity = (payload.get("activity") or "").strip().lower()
+    if activity not in VALID_ACTIVITIES:
+        return jsonify(error="invalid activity", allowed=list(VALID_ACTIVITIES)), 400
+
+    ts = now_iso()
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        active = get_active_shift(conn)
+        if active:
+            c.execute("UPDATE shifts SET end_time=? WHERE id=?", (ts, active["id"]))
+        c.execute(
+            "INSERT INTO shifts(start_time, end_time, activity) VALUES(?, NULL, ?)",
+            (ts, activity)
+        )
         conn.commit()
-    return jsonify(status="cleared"), 200
+        new_id = c.lastrowid
 
-@app.route("/api/download_history", methods=["GET"])
-def download_history():
-    rows = db_rows()
-    # Готовим CSV (первая строка — заголовки)
-    csv_data = "id,start_time,end_time\n"
-    for row in rows:
-        csv_data += f"{row[0]},{row[1]},{row[2]}\n"
+    return jsonify(id=new_id, start_time=ts, activity=activity), 201
 
-    return (
-        csv_data,
-        200,
-        {
-            "Content-Type": "text/csv; charset=utf-8",
-            "Content-Disposition": 'attachment; filename="history.csv"',
-        },
-    )
+
+@app.route("/api/activity/stop", methods=["POST"])
+def api_activity_stop():
+    ts = now_iso()
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        active = get_active_shift(conn)
+        if not active:
+            return jsonify(error="no active shift"), 409
+        c.execute("UPDATE shifts SET end_time=? WHERE id=?", (ts, active["id"]))
+        conn.commit()
+    return jsonify(stopped_id=active["id"], end_time=ts), 200
+
+
+    
 # ---------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
